@@ -1,4 +1,7 @@
-const Sidebar = ({ activeView, setActiveView, collapsed, setCollapsed, notesCount }) => {
+import { memo } from 'react'
+import logo from '../assets/logo.png'
+
+const Sidebar = memo(({ activeView, setActiveView, collapsed, setCollapsed, notesCount }) => {
   const navItems = [
     { id: 'dashboard', icon: '📊', label: 'Dashboard', color: 'from-[#a8d8ea] to-[#c7ceea]' },
     { id: 'notes', icon: '📝', label: 'All Notes', badge: notesCount, color: 'from-[#ffd4d4] to-[#ffb3ba]' },
@@ -9,17 +12,22 @@ const Sidebar = ({ activeView, setActiveView, collapsed, setCollapsed, notesCoun
   ]
 
   return (
-    <aside className={`${collapsed ? 'w-20' : 'w-72'} bg-[#fef9f3]/80 backdrop-blur-xl border-r border-[#e8dcc8]/50 p-4 md:p-6 flex flex-col gap-6 md:gap-8 transition-all duration-300 sticky top-0 h-screen overflow-y-auto relative z-20 hidden md:flex`}
+    <aside className={`${collapsed ? 'w-20' : 'w-72'} bg-[#fef9f3]/80 backdrop-blur-xl border-r border-[#e8dcc8]/50 p-4 md:p-6 flex flex-col gap-6 md:gap-8 transition-all duration-300 fixed top-0 left-0 bottom-0 h-screen overflow-y-auto relative z-20 hidden md:flex`}
       style={{
         boxShadow: '8px 0 24px rgba(0, 0, 0, 0.03), inset -1px 0 0 rgba(255, 255, 255, 0.5)'
       }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3">
-          <div className="text-2xl md:text-3xl drop-shadow-sm">📝</div>
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl overflow-hidden bg-gradient-to-br from-[#ffb3ba] to-[#ffd4d4] flex items-center justify-center"
+            style={{
+              boxShadow: '4px 4px 12px rgba(139, 115, 85, 0.15), -4px -4px 12px rgba(255, 255, 255, 0.7)'
+            }}>
+            <img src={logo} alt="ThinkPad Logo" className="w-full h-full object-cover" />
+          </div>
           {!collapsed && (
-            <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-[#ff9a9e] via-[#fad0c4] to-[#ffeaa7] bg-clip-text text-transparent">
-              NotesHub
+            <span className="text-lg md:text-xl font-bold text-[#2c3e50]">
+              ThinkPad
             </span>
           )}
         </div>
@@ -83,6 +91,8 @@ const Sidebar = ({ activeView, setActiveView, collapsed, setCollapsed, notesCoun
       </nav>
     </aside>
   )
-}
+})
+
+Sidebar.displayName = 'Sidebar'
 
 export default Sidebar

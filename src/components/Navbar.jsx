@@ -1,12 +1,10 @@
-import { useState } from 'react'
+import { memo, useCallback } from 'react'
+import logo from '../assets/logo.png'
 
-const Navbar = ({ onQuickAdd, onSearch }) => {
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value)
+const Navbar = memo(({ onQuickAdd, onSearch }) => {
+  const handleSearch = useCallback((e) => {
     onSearch(e.target.value)
-  }
+  }, [onSearch])
 
   return (
     <header className="bg-[#fef9f3]/90 backdrop-blur-xl border border-[#e8dcc8]/50 rounded-2xl md:rounded-3xl p-3 md:p-5 animate-slideDown sticky top-0 z-50 hover-lift"
@@ -18,7 +16,6 @@ const Navbar = ({ onQuickAdd, onSearch }) => {
         <div className="flex-1 max-w-md relative group">
           <input
             type="text"
-            value={searchQuery}
             onChange={handleSearch}
             placeholder="Search..."
             className="w-full px-4 md:px-5 py-2.5 md:py-3.5 pl-10 md:pl-12 bg-gradient-to-br from-[#fef9f3] to-[#f5e6d3] border-none rounded-xl md:rounded-2xl focus:outline-none transition-all text-sm md:text-base text-[#5a4a3a] placeholder-[#a89580] focus:scale-105 focus:shadow-lg"
@@ -63,17 +60,19 @@ const Navbar = ({ onQuickAdd, onSearch }) => {
           </button>
 
           {/* User Avatar */}
-          <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#ffb3ba] to-[#ffd4d4] flex items-center justify-center text-[#5a4a3a] font-bold cursor-pointer hover:scale-110 active:scale-95 transition-all text-xs md:text-base animate-slideDown"
+          <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-[#ffb3ba] to-[#ffd4d4] flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all animate-slideDown overflow-hidden"
             style={{
               boxShadow: '6px 6px 16px rgba(139, 115, 85, 0.2), -6px -6px 16px rgba(255, 255, 255, 0.8), inset 2px 2px 4px rgba(255, 255, 255, 0.5)',
               animationDelay: '0.3s'
             }}>
-            RK
+            <img src={logo} alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
       </div>
     </header>
   )
-}
+})
+
+Navbar.displayName = 'Navbar'
 
 export default Navbar

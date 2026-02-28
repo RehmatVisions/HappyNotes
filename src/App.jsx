@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import MobileNav from './components/MobileNav'
@@ -8,21 +8,29 @@ import ReportsView from './components/ReportsView'
 import TrashView from './components/TrashView'
 import ArchiveView from './components/ArchiveView'
 import NoteEditor from './components/NoteEditor'
+import NoteViewer from './components/NoteViewer'
 import FloatingButton from './components/FloatingButton'
+import NotificationCenter from './components/NotificationCenter'
+import ToastContainer from './components/Toast'
+import Footer from './components/Footer'
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [notes, setNotes] = useState([])
   const [trashedNotes, setTrashedNotes] = useState([])
   const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [currentNote, setCurrentNote] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [notifications, setNotifications] = useState([])
+  const [toasts, setToasts] = useState([])
 
-  // Load notes from localStorage on mount
+  // Load data from localStorage on mount
   useEffect(() => {
     const savedNotes = localStorage.getItem('notes')
     const savedTrashed = localStorage.getItem('trashedNotes')
+    const savedNotifications = localStorage.getItem('notifications')
     
     if (savedNotes) {
       try {
@@ -43,124 +51,238 @@ function App() {
         setTrashedNotes([])
       }
     }
+
+    if (savedNotifications) {
+      try {
+        const parsed = JSON.parse(savedNotifications)
+        setNotifications(Array.isArray(parsed) ? parsed : [])
+      } catch (error) {
+        console.error('Error loading notifications:', error)
+        setNotifications([])
+      }
+    }
   }, [])
 
-  const saveNote = (note) => {
-    let updatedNotes
-    if (note.id) {
-      // Update existing note
-      updatedNotes = notes.map(n => n.id === note.id ? { ...note, updatedAt: new Date().toISOString() } : n)
-    } else {
-      // Create new note
-      const newNote = { 
-        ...note, 
-        id: Date.now(), 
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        pinned: false,
-        archived: false,
-        tags: note.tags || []
-      }
-      updatedNotes = [newNote, ...notes]
+  // Add notification helper - memoized
+  const addNotification = useCallback((title, message, icon = '📝') => {
+    const newNotification = {
+      id: Date.now(),
+      title,
+      message,
+      icon,
+      timestamp: new Date().toISOString(),
+      read: false
     }
-    setNotes(updatedNotes)
-    localStorage.setItem('notes', JSON.stringify(updatedNotes))
+    setNotifications(prev => {
+      const updated = [newNotification, ...prev]
+      localStorage.setItem('notifications', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
+  // Add toast helper - memoized
+  const showToast = useCallback((message, type = 'success') => {
+    const newToast = {
+      id: Date.now(),
+      message,
+      type
+    }
+    setToasts(prev => [...prev, newToast])
+  }, [])
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([])
+    localStorage.setItem('notifications', JSON.stringify([]))
+  }, [])
+
+  const removeNotification = useCallback((id) => {
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== id)
+      localStorage.setItem('notifications', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
+  const saveNote = useCallback((note) => {
+    setNotes(prev => {
+      let updatedNotes
+      if (note.id) {
+        // Update existing note
+        updatedNotes = prev.map(n => n.id === note.id ? { ...note, updatedAt: new Date().toISOString() } : n)
+        addNotification('Note Updated', `"${note.title}" has been updated`, '✏️')
+        showToast(`Note "${note.title}" updated successfully`, 'updated')
+      } else {
+        // Create new note
+        const newNote = { 
+          ...note, 
+          id: Date.now(), 
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          pinned: false,
+          archived: false,
+          tags: note.tags || []
+        }
+        updatedNotes = [newNote, ...prev]
+        addNotification('Note Created', `"${newNote.title}" has been created successfully`, '✨')
+        showToast(`Note "${newNote.title}" created successfully`, 'created')
+      }
+      localStorage.setItem('notes', JSON.stringify(updatedNotes))
+      return updatedNotes
+    })
     setIsEditorOpen(false)
     setCurrentNote(null)
-  }
+  }, [addNotification, showToast])
 
-  const deleteNote = (id) => {
-    // Move to trash instead of permanent delete
-    const noteToTrash = notes.find(n => n.id === id)
-    if (noteToTrash) {
-      const updatedTrashed = [{ ...noteToTrash, trashedAt: new Date().toISOString() }, ...trashedNotes]
-      setTrashedNotes(updatedTrashed)
-      localStorage.setItem('trashedNotes', JSON.stringify(updatedTrashed))
-      
-      const updatedNotes = notes.filter(n => n.id !== id)
-      setNotes(updatedNotes)
-      localStorage.setItem('notes', JSON.stringify(updatedNotes))
-    }
-  }
+  const deleteNote = useCallback((id) => {
+    setNotes(prev => {
+      const noteToTrash = prev.find(n => n.id === id)
+      if (noteToTrash) {
+        setTrashedNotes(prevTrashed => {
+          const updated = [{ ...noteToTrash, trashedAt: new Date().toISOString() }, ...prevTrashed]
+          localStorage.setItem('trashedNotes', JSON.stringify(updated))
+          return updated
+        })
+        addNotification('Note Moved to Trash', `"${noteToTrash.title}" has been moved to trash`, '🗑️')
+        showToast(`Note "${noteToTrash.title}" moved to trash`, 'deleted')
+        const updated = prev.filter(n => n.id !== id)
+        localStorage.setItem('notes', JSON.stringify(updated))
+        return updated
+      }
+      return prev
+    })
+  }, [addNotification, showToast])
 
-  const permanentDelete = (id) => {
+  const permanentDelete = useCallback((id) => {
     if (window.confirm('Permanently delete this note? This cannot be undone!')) {
-      const updatedTrashed = trashedNotes.filter(n => n.id !== id)
-      setTrashedNotes(updatedTrashed)
-      localStorage.setItem('trashedNotes', JSON.stringify(updatedTrashed))
+      setTrashedNotes(prev => {
+        const noteToDelete = prev.find(n => n.id === id)
+        const updated = prev.filter(n => n.id !== id)
+        localStorage.setItem('trashedNotes', JSON.stringify(updated))
+        addNotification('Note Deleted', `"${noteToDelete?.title}" has been permanently deleted`, '❌')
+        showToast(`Note permanently deleted`, 'deleted')
+        return updated
+      })
     }
-  }
+  }, [addNotification, showToast])
 
-  const restoreNote = (id) => {
-    const noteToRestore = trashedNotes.find(n => n.id === id)
-    if (noteToRestore) {
-      const { trashedAt, ...restoredNote } = noteToRestore
-      const updatedNotes = [{ ...restoredNote, updatedAt: new Date().toISOString() }, ...notes]
-      setNotes(updatedNotes)
-      localStorage.setItem('notes', JSON.stringify(updatedNotes))
-      
-      const updatedTrashed = trashedNotes.filter(n => n.id !== id)
-      setTrashedNotes(updatedTrashed)
-      localStorage.setItem('trashedNotes', JSON.stringify(updatedTrashed))
-    }
-  }
+  const restoreNote = useCallback((id) => {
+    setTrashedNotes(prev => {
+      const noteToRestore = prev.find(n => n.id === id)
+      if (noteToRestore) {
+        const { trashedAt, ...restoredNote } = noteToRestore
+        setNotes(prevNotes => {
+          const updated = [{ ...restoredNote, updatedAt: new Date().toISOString() }, ...prevNotes]
+          localStorage.setItem('notes', JSON.stringify(updated))
+          return updated
+        })
+        addNotification('Note Restored', `"${noteToRestore.title}" has been restored`, '♻️')
+        const updated = prev.filter(n => n.id !== id)
+        localStorage.setItem('trashedNotes', JSON.stringify(updated))
+        return updated
+      }
+      return prev
+    })
+  }, [addNotification])
 
-  const emptyTrash = () => {
+  const emptyTrash = useCallback(() => {
     if (window.confirm('Empty trash? All notes will be permanently deleted!')) {
       setTrashedNotes([])
       localStorage.setItem('trashedNotes', JSON.stringify([]))
+      addNotification('Trash Emptied', 'All notes in trash have been permanently deleted', '🗑️')
     }
-  }
+  }, [addNotification])
 
-  const togglePin = (id) => {
-    const updatedNotes = notes.map(n => 
-      n.id === id ? { ...n, pinned: !n.pinned, updatedAt: new Date().toISOString() } : n
-    )
-    setNotes(updatedNotes)
-    localStorage.setItem('notes', JSON.stringify(updatedNotes))
-  }
+  const togglePin = useCallback((id) => {
+    setNotes(prev => {
+      const note = prev.find(n => n.id === id)
+      const updated = prev.map(n => 
+        n.id === id ? { ...n, pinned: !n.pinned, updatedAt: new Date().toISOString() } : n
+      )
+      localStorage.setItem('notes', JSON.stringify(updated))
+      if (note) {
+        addNotification(
+          note.pinned ? 'Note Unpinned' : 'Note Pinned',
+          `"${note.title}" has been ${note.pinned ? 'unpinned' : 'pinned'}`,
+          note.pinned ? '📌' : '⭐'
+        )
+      }
+      return updated
+    })
+  }, [addNotification])
 
-  const archiveNote = (id) => {
-    const updatedNotes = notes.map(n => 
-      n.id === id ? { ...n, archived: !n.archived, updatedAt: new Date().toISOString() } : n
-    )
-    setNotes(updatedNotes)
-    localStorage.setItem('notes', JSON.stringify(updatedNotes))
-  }
+  const archiveNote = useCallback((id) => {
+    setNotes(prev => {
+      const note = prev.find(n => n.id === id)
+      const updated = prev.map(n => 
+        n.id === id ? { ...n, archived: !n.archived, updatedAt: new Date().toISOString() } : n
+      )
+      localStorage.setItem('notes', JSON.stringify(updated))
+      if (note) {
+        addNotification(
+          note.archived ? 'Note Unarchived' : 'Note Archived',
+          `"${note.title}" has been ${note.archived ? 'unarchived' : 'archived'}`,
+          '📦'
+        )
+      }
+      return updated
+    })
+  }, [addNotification])
 
-  const duplicateNote = (note) => {
-    const newNote = {
-      ...note,
-      id: Date.now(),
-      title: `${note.title} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      pinned: false
-    }
-    const updatedNotes = [newNote, ...notes]
-    setNotes(updatedNotes)
-    localStorage.setItem('notes', JSON.stringify(updatedNotes))
-  }
+  const duplicateNote = useCallback((note) => {
+    setNotes(prev => {
+      const newNote = {
+        ...note,
+        id: Date.now(),
+        title: `${note.title} (Copy)`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        pinned: false
+      }
+      const updated = [newNote, ...prev]
+      localStorage.setItem('notes', JSON.stringify(updated))
+      addNotification('Note Duplicated', `"${note.title}" has been duplicated`, '📋')
+      return updated
+    })
+  }, [addNotification])
 
-  const openEditor = (note = null) => {
+  const openEditor = useCallback((note = null) => {
     setCurrentNote(note)
     setIsEditorOpen(true)
-  }
+    setIsViewerOpen(false)
+  }, [])
 
-  const handleSearch = (query) => {
+  const openViewer = useCallback((note) => {
+    setCurrentNote(note)
+    setIsViewerOpen(true)
+  }, [])
+
+  const handleSearch = useCallback((query) => {
     setSearchQuery(query)
-  }
+  }, [])
 
-  // Filter notes based on search query
-  const filteredNotes = notes.filter(note => {
-    if (!searchQuery) return true
+  // Filter notes based on search query - memoized
+  const filteredNotes = useMemo(() => {
+    if (!searchQuery) return notes
     const searchLower = searchQuery.toLowerCase()
-    return (
+    return notes.filter(note => 
       note.title?.toLowerCase().includes(searchLower) ||
       note.content?.toLowerCase().includes(searchLower) ||
       note.tags?.some(tag => tag.toLowerCase().includes(searchLower))
     )
-  })
+  }, [notes, searchQuery])
+
+  // Memoize filtered note lists
+  const activeNotes = useMemo(() => notes.filter(n => !n.archived), [notes])
+  const pinnedNotes = useMemo(() => notes.filter(n => n.pinned && !n.archived), [notes])
+  const archivedNotes = useMemo(() => notes.filter(n => n.archived), [notes])
+  const filteredActiveNotes = useMemo(() => 
+    searchQuery ? filteredNotes.filter(n => !n.archived) : activeNotes,
+    [searchQuery, filteredNotes, activeNotes]
+  )
 
   return (
     <div className="min-h-screen">
@@ -183,21 +305,29 @@ function App() {
           setActiveView={setActiveView}
           collapsed={sidebarCollapsed}
           setCollapsed={setSidebarCollapsed}
-          notesCount={notes.filter(n => !n.archived).length}
+          notesCount={activeNotes.length}
         />
 
         <main className="flex-1 p-3 md:p-6 relative z-10 pb-20 md:pb-6">
-          <Navbar 
-            onQuickAdd={() => openEditor()}
-            onSearch={handleSearch}
-          />
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <Navbar 
+              onQuickAdd={() => openEditor()}
+              onSearch={handleSearch}
+            />
+            <NotificationCenter 
+              notifications={notifications}
+              onClearAll={clearAllNotifications}
+              onRemove={removeNotification}
+            />
+          </div>
 
           <div className="mt-4 md:mt-6">
-            {activeView === 'dashboard' && <Dashboard notes={notes.filter(n => !n.archived)} />}
+            {activeView === 'dashboard' && <Dashboard notes={activeNotes} />}
             {activeView === 'notes' && (
               <NotesView 
-                notes={searchQuery ? filteredNotes.filter(n => !n.archived) : notes.filter(n => !n.archived)} 
-                onEdit={openEditor} 
+                notes={filteredActiveNotes} 
+                onEdit={openEditor}
+                onView={openViewer}
                 onDelete={deleteNote}
                 onTogglePin={togglePin}
                 onArchive={archiveNote}
@@ -206,8 +336,9 @@ function App() {
             )}
             {activeView === 'favorites' && (
               <NotesView 
-                notes={notes.filter(n => n.pinned && !n.archived)} 
-                onEdit={openEditor} 
+                notes={pinnedNotes} 
+                onEdit={openEditor}
+                onView={openViewer}
                 onDelete={deleteNote}
                 onTogglePin={togglePin}
                 onArchive={archiveNote}
@@ -217,10 +348,10 @@ function App() {
                 emptyIcon="⭐"
               />
             )}
-            {activeView === 'reports' && <ReportsView notes={notes.filter(n => !n.archived)} />}
+            {activeView === 'reports' && <ReportsView notes={activeNotes} />}
             {activeView === 'archive' && (
               <ArchiveView 
-                notes={notes.filter(n => n.archived)}
+                notes={archivedNotes}
                 onRestore={archiveNote}
                 onDelete={deleteNote}
               />
@@ -234,12 +365,15 @@ function App() {
               />
             )}
           </div>
+
+          {/* Footer */}
+          <Footer />
         </main>
 
         <MobileNav 
           activeView={activeView}
           setActiveView={setActiveView}
-          notesCount={notes.filter(n => !n.archived).length}
+          notesCount={activeNotes.length}
         />
 
         <FloatingButton onClick={() => openEditor()} />
@@ -255,6 +389,22 @@ function App() {
             }}
           />
         )}
+
+        {isViewerOpen && currentNote && (
+          <NoteViewer
+            note={currentNote}
+            onClose={() => {
+              setIsViewerOpen(false)
+              setCurrentNote(null)
+            }}
+            onEdit={openEditor}
+            onDelete={deleteNote}
+            onTogglePin={togglePin}
+            onArchive={archiveNote}
+          />
+        )}
+
+        <ToastContainer toasts={toasts} removeToast={removeToast} />
       </div>
     </div>
   )

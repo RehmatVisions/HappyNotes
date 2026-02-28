@@ -1,31 +1,28 @@
-const Dashboard = ({ notes }) => {
-  const totalNotes = notes.length
-  const totalWords = notes.reduce((sum, note) => {
-    return sum + (note.content?.split(/\s+/).filter(w => w.length > 0).length || 0)
-  }, 0)
-  const pinnedNotes = notes.filter(n => n.pinned).length
-  
-  // Calculate streak (simplified - days with notes)
-  const today = new Date().toDateString()
-  const hasNoteToday = notes.some(n => new Date(n.createdAt).toDateString() === today)
-  const streak = hasNoteToday ? Math.min(notes.length, 15) : 0
+import { memo, useMemo } from 'react'
+import AnalogClock from './AnalogClock'
 
-  const stats = [
-    { icon: '📝', label: 'Total Notes', value: totalNotes, gradient: 'from-[#a8d8ea] to-[#c7ceea]' },
-    { icon: '🔥', label: 'Day Streak', value: streak, gradient: 'from-[#ffd4d4] to-[#ffb3ba]' },
-    { icon: '📊', label: 'Total Words', value: totalWords > 1000 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords, gradient: 'from-[#a8e6cf] to-[#dcedc1]' },
-    { icon: '⭐', label: 'Pinned', value: pinnedNotes, gradient: 'from-[#ffeaa7] to-[#fdcb6e]' },
-  ]
+const Dashboard = memo(({ notes }) => {
+  const stats = useMemo(() => {
+    const totalNotes = notes.length
+    const totalWords = notes.reduce((sum, note) => {
+      return sum + (note.content?.split(/\s+/).filter(w => w.length > 0).length || 0)
+    }, 0)
+    const pinnedNotes = notes.filter(n => n.pinned).length
+    
+    // Calculate streak (simplified - days with notes)
+    const today = new Date().toDateString()
+    const hasNoteToday = notes.some(n => new Date(n.createdAt).toDateString() === today)
+    const streak = hasNoteToday ? Math.min(notes.length, 15) : 0
 
-  const recentNotes = notes.slice(0, 5)
+    return [
+      { icon: '📝', label: 'Total Notes', value: totalNotes, gradient: 'from-[#a8d8ea] to-[#c7ceea]' },
+      { icon: '🔥', label: 'Day Streak', value: streak, gradient: 'from-[#ffd4d4] to-[#ffb3ba]' },
+      { icon: '📊', label: 'Total Words', value: totalWords > 1000 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords, gradient: 'from-[#a8e6cf] to-[#dcedc1]' },
+      { icon: '⭐', label: 'Pinned', value: pinnedNotes, gradient: 'from-[#ffeaa7] to-[#fdcb6e]' },
+    ]
+  }, [notes])
 
-  // Generate weekly activity data based on actual notes
-  const weeklyData = Array(7).fill(0).map((_, i) => {
-    const date = new Date()
-    date.setDate(date.getDate() - (6 - i))
-    const dateStr = date.toDateString()
-    return notes.filter(n => new Date(n.createdAt).toDateString() === dateStr).length
-  })
+  const recentNotes = useMemo(() => notes.slice(0, 5), [notes])
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
@@ -52,40 +49,13 @@ const Dashboard = ({ notes }) => {
         </div>
       ))}
 
-      {/* Chart Card */}
+      {/* Real-Time Clock Card */}
       <div className="sm:col-span-2 lg:col-span-2 lg:row-span-2 bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-3xl p-4 md:p-6 hover:scale-105 transition-all duration-300 animate-slideUp" 
         style={{ 
           animationDelay: '400ms',
           boxShadow: '8px 8px 24px rgba(139, 115, 85, 0.12), -8px -8px 24px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.6)'
         }}>
-        <h3 className="text-base md:text-lg font-bold mb-4 md:mb-6 text-[#5a4a3a]">Weekly Activity</h3>
-        <div className="h-48 md:h-64 flex items-end justify-around gap-2 md:gap-3">
-          {weeklyData.map((value, i) => {
-            const colors = ['#a8d8ea', '#ffd4d4', '#a8e6cf', '#ffeaa7', '#c7ceea', '#ffb3ba', '#dcedc1']
-            const maxValue = Math.max(...weeklyData, 1)
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-t-2xl transition-all hover:scale-105 animate-growUp relative group cursor-pointer"
-                  style={{ 
-                    height: `${(value / maxValue) * 100}%`,
-                    minHeight: value > 0 ? '20px' : '4px',
-                    animationDelay: `${i * 100}ms`,
-                    background: `linear-gradient(to top, ${colors[i]}, ${colors[i]}dd)`,
-                    boxShadow: `4px 4px 12px rgba(139, 115, 85, 0.15), -2px -2px 8px rgba(255, 255, 255, 0.8), inset 1px 1px 3px rgba(255, 255, 255, 0.5)`
-                  }}
-                >
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#5a4a3a] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {value} notes
-                  </div>
-                </div>
-                <span className="text-xs text-[#8b7355] font-medium">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <AnalogClock />
       </div>
 
       {/* Recent Notes */}
@@ -126,6 +96,8 @@ const Dashboard = ({ notes }) => {
       </div>
     </div>
   )
-}
+})
+
+Dashboard.displayName = 'Dashboard'
 
 export default Dashboard

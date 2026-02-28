@@ -1,4 +1,6 @@
-const NotesView = ({ notes, onEdit, onDelete, onTogglePin, onArchive, onDuplicate, viewTitle = 'All Notes', emptyMessage = 'No notes yet', emptyIcon = '📝' }) => {
+import { memo } from 'react'
+
+const NotesView = memo(({ notes, onEdit, onView, onDelete, onTogglePin, onArchive, onDuplicate, viewTitle = 'All Notes', emptyMessage = 'No notes yet', emptyIcon = '📝' }) => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3">
@@ -51,7 +53,7 @@ const NotesView = ({ notes, onEdit, onDelete, onTogglePin, onArchive, onDuplicat
             return (
               <div
                 key={note.id}
-                className={`bg-gradient-to-br ${gradient} backdrop-blur-xl rounded-2xl md:rounded-3xl p-4 md:p-6 hover:scale-105 transition-all duration-300 cursor-pointer group animate-noteAppear relative overflow-hidden hover-lift ${
+                className={`bg-gradient-to-br ${gradient} backdrop-blur-xl rounded-2xl md:rounded-3xl p-4 md:p-6 hover:scale-105 transition-all duration-300 group animate-noteAppear relative overflow-hidden hover-lift ${
                   note.pinned ? 'ring-2 ring-[#ffd4d4] ring-offset-2' : ''
                 }`}
                 style={{ 
@@ -66,7 +68,7 @@ const NotesView = ({ notes, onEdit, onDelete, onTogglePin, onArchive, onDuplicat
                   </div>
                 )}
 
-                <div className="relative z-10" onClick={() => onEdit(note)}>
+                <div className="relative z-10">
                   <h3 className="text-base md:text-lg font-bold text-[#5a4a3a] mb-2 line-clamp-1 group-hover:scale-105 transition-transform duration-300 pr-8">
                     {note.title || 'Untitled Note'}
                   </h3>
@@ -79,8 +81,35 @@ const NotesView = ({ notes, onEdit, onDelete, onTogglePin, onArchive, onDuplicat
                   </div>
                 </div>
 
+                {/* Read Button - Primary Action */}
+                <div className="mt-4 relative z-20">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (onView) onView(note)
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#a8e6cf] to-[#dcedc1] hover:from-[#8dd4b0] hover:to-[#c5e8a8] transition-all text-sm font-bold text-[#5a4a3a] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+                    style={{
+                      boxShadow: '4px 4px 12px rgba(139, 115, 85, 0.2), -2px -2px 8px rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
+                    <span>📖</span>
+                    <span>Read Note</span>
+                  </button>
+                </div>
+
                 {/* Action buttons */}
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#8b7355]/20 relative z-20">
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#8b7355]/20 relative z-20">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(note)
+                    }}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-white/40 hover:bg-white/60 transition-all text-xs font-semibold text-[#5a4a3a] hover:scale-105 active:scale-95"
+                    title="Edit"
+                  >
+                    ✏️
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -132,6 +161,8 @@ const NotesView = ({ notes, onEdit, onDelete, onTogglePin, onArchive, onDuplicat
       )}
     </div>
   )
-}
+})
+
+NotesView.displayName = 'NotesView'
 
 export default NotesView
