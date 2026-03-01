@@ -11,10 +11,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'charts': ['recharts'],
-          'pdf': ['jspdf', 'html2canvas']
+        manualChunks(id) {
+          if (id.includes('node_modules/react')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/recharts')) {
+            return 'charts'
+          }
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return 'pdf'
+          }
         }
       }
     },
